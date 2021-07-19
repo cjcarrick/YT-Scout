@@ -21,42 +21,42 @@ dir="videoSearchTemp-$(date +%Y%m%d%H%M%S)"
 
 echo && echo "Beginning subtitle download step" && echo
 
-(exec youtube-dl --write-auto-sub --convert-subs=srt --skip-download -ciw -v ${link} -o "./$dir/%(id)s")
+(exec youtube-dl --write-auto-sub --convert-subs=srt --skip-download -ciw -v ${link} -o "$TMPDIR//%(id)s")
 
 echo && echo "Beginning video download and trim step" && echo
-for subs in $(ls ./$dir); do
+for subs in $(ls $TMPDIR/); do
 
     # https://stackoverflow.com/a/8260383
     id=$(echo "$link" | pcregrep -o1 '.*(?:youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=)([^#\&\?]*).*')
 
 
     # this one would work great. and it works fine on regex101. but for some reason pcregrep doesn't include all the matches
-    # (exec cat $dir/$subs | pcregrep -M -o '(?<=Language: en\n\n).*(?= -->)|(?<=<c> )[^<]*(?=<\/c>)|(?<=%\n)^[ ]{0,1}\w++$(?=\n)|^[^\n<]++(?=<)|(?<=<)[^<>]*(?=><c>)|(?<= \n\n)[^ ]*(?= --> )' >"./$dir/$id-combined.txt")
+    # (exec cat $dir/$subs | pcregrep -M -o '(?<=Language: en\n\n).*(?= -->)|(?<=<c> )[^<]*(?=<\/c>)|(?<=%\n)^[ ]{0,1}\w++$(?=\n)|^[^\n<]++(?=<)|(?<=<)[^<>]*(?=><c>)|(?<= \n\n)[^ ]*(?= --> )' >"$TMPDIR//$id-combined.txt")
 
     # this one is what i have to use instead. It's a bit janky because it returns empty lines, and then sed removes the empty lines. but it's the only way I could get it to work so yeah
-    (exec cat $dir/$subs | pcregrep -Mo '(?<=Language: en)[\s\S]*?(?= -->)|(?<=<c> )[^<]*(?=<\/c>)|(?<=%\s)^[ ]{0,1}\w++$(?=\s[^a-zA-Z0-9])|^[^\s<]++(?=<)|(?<=<)[^<>]*(?=><c>)|(?<= )[^a-z][^ ]*(?= --> )' | sed '/^$/d' >"./$dir/$id-combined.txt")
+    (exec cat $dir/$subs | pcregrep -Mo '(?<=Language: en)[\s\S]*?(?= -->)|(?<=<c> )[^<]*(?=<\/c>)|(?<=%\s)^[ ]{0,1}\w++$(?=\s[^a-zA-Z0-9])|^[^\s<]++(?=<)|(?<=<)[^<>]*(?=><c>)|(?<= )[^a-z][^ ]*(?= --> )' | sed '/^$/d' >"$TMPDIR//$id-combined.txt")
 
     # this gets a file you can actually search through
-    (exec cat $dir/$subs | pcregrep -Mo '(?<=<c> )[^<]*(?=<\/c>)|(?<=%\n)^[ ]{0,1}\w++$(?=\n)|^[^\n<]++(?=<)' >"./$dir/$id-words.txt")
+    (exec cat $dir/$subs | pcregrep -Mo '(?<=<c> )[^<]*(?=<\/c>)|(?<=%\n)^[ ]{0,1}\w++$(?=\n)|^[^\n<]++(?=<)' >"$TMPDIR//$id-words.txt")
 
     # download videos if they have matches
-    countInVideo=$(grep -rohc "$searchPattern" "./$dir/$id-words.txt")
+    countInVideo=$(grep -rohc "$searchPattern" "$TMPDIR//$id-words.txt")
     Echo "Found $countInVideo match(es) of $searchPattern in $id"
 
-    if [ $(exec grep -rohc "$searchPattern" "./$dir/$id-words.txt") -gt 0 ]; then
+    if [ $(exec grep -rohc "$searchPattern" "$TMPDIR//$id-words.txt") -gt 0 ]; then
         echo "[youtube-dl] downloading $id..."
 
         # download the best seperate audio+video files, then combine. Less reliable
-        # (exec youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 $id -o "./$dir/%(id)s")
+        # (exec youtube-dl -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 $id -o "$TMPDIR//%(id)s")
         # download the best single file. Pretty much guaranteed to work.
-        (exec youtube-dl -f best[ext=mp4] $id -o "./$dir/%(id)s.%(ext)s")
+        (exec youtube-dl -f best[ext=mp4] $id -o "$TMPDIR//%(id)s.%(ext)s")
 
         splitSearchTerm=(${searchPattern// / })
         searchterm1=${splitSearchTerm[0]}
 
-        # (exec grep -n ${splitSearchTerm[1]} ./$dir/$id-timecodes.txt | cut -f1 -d:)
+        # (exec grep -n ${splitSearchTerm[1]} $TMPDIR//$id-timecodes.txt | cut -f1 -d:)
 
-        # for match in $(grep -n $searchPattern ./$dir/$id-words.txt | cut -f1 -d:); do
+        # for match in $(grep -n $searchPattern $TMPDIR//$id-words.txt | cut -f1 -d:); do
         #     echo $match
         # done
 
@@ -67,10 +67,10 @@ for subs in $(ls ./$dir); do
             echo "$lineNumber"
 
             ((startIndex = $lineNumber * 2 - 1))
-            start=$(sed -n ${startIndex}p ./$dir/$id-combined.txt)
+            start=$(sed -n ${startIndex}p $TMPDIR//$id-combined.txt)
 
             ((endIndex = $lineNumber * 2 + 1))
-            end=$(sed -n ${endIndex}p ./$dir/$id-combined.txt)
+            end=$(sed -n ${endIndex}p $TMPDIR//$id-combined.txt)
 
             # initialLineNumber=${timecodesArray[lineNumber-1]}
             # finalLineNumber=${timecodesArray[lineNumber]}
@@ -87,7 +87,7 @@ for subs in $(ls ./$dir); do
     fi
 
     echo "removing some temp files that are no longer needed..."
-    # (exec rm "./$dir/$id-words.txt" "./$dir/$id-timecodes.txt" "./$dir/$id.mp4" "./$dir/$subs")
+    # (exec rm "$TMPDIR//$id-words.txt" "$TMPDIR//$id-timecodes.txt" "$TMPDIR//$id.mp4" "$TMPDIR//$subs")
 
 done
 
@@ -113,7 +113,7 @@ echo ""
 
 # id=``
 
-# (exec youtube-dl --write-auto-sub --convert-subs=srt --skip-download -ciw -v ${link} -o "./$dir/%(id)s.%(ext)s")
+# (exec youtube-dl --write-auto-sub --convert-subs=srt --skip-download -ciw -v ${link} -o "$TMPDIR//%(id)s.%(ext)s")
 
 # finds all timecode in .vtt:
 #   (Has to have all the or statements (|) to get the timecodes at the very top and bottom too)
